@@ -1,0 +1,200 @@
+name: Build GFC APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create GFC Android project
+        run: |
+          mkdir -p app/src/main/java/com/gfc/gofast
+          mkdir -p app/src/main/res/values
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+            repositories {
+              google()
+              mavenCentral()
+              gradlePluginPortal()
+            }
+          }
+
+          dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories {
+              google()
+              mavenCentral()
+            }
+          }
+
+          rootProject.name = "GFC"
+          include(":app")
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins {
+            id 'com.android.application' version '8.7.3' apply false
+            id 'org.jetbrains.kotlin.android' version '2.0.21' apply false
+          }
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins {
+            id 'com.android.application'
+            id 'org.jetbrains.kotlin.android'
+          }
+
+          android {
+            namespace 'com.gfc.gofast'
+            compileSdk 35
+
+            defaultConfig {
+              applicationId 'com.gfc.gofast'
+              minSdk 24
+              targetSdk 35
+              versionCode 1
+              versionName '1.0'
+            }
+          }
+
+          dependencies {
+            implementation 'androidx.core:core-ktx:1.15.0'
+            implementation 'androidx.appcompat:appcompat:1.7.0'
+            implementation 'com.google.android.material:material:1.12.0'
+          }
+          EOF
+
+          cat > app/src/main/res/values/colors.xml <<'EOF'
+          <resources>
+            <color name="gfc_black">#071019</color>
+            <color name="gfc_yellow">#FFC400</color>
+          </resources>
+          EOF
+
+          cat > app/src/main/res/values/themes.xml <<'EOF'
+          <resources>
+            <style name="AppTheme"
+              parent="Theme.Material3.DayNight.NoActionBar">
+              <item name="android:fontFamily">sans</item>
+              <item name="android:colorAccent">#FFC400</item>
+              <item name="android:navigationBarColor">#071019</item>
+              <item name="android:statusBarColor">#071019</item>
+            </style>
+          </resources>
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET"/>
+            <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+            <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+            <application
+              android:theme="@style/AppTheme"
+              android:label="GFC — Go Fast Chinhoyi">
+
+              <activity
+                android:name=".MainActivity"
+                android:exported="true">
+
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN"/>
+                  <category android:name="android.intent.category.LAUNCHER"/>
+                </intent-filter>
+
+              </activity>
+            </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/java/com/gfc/gofast/MainActivity.kt <<'EOF'
+          package com.gfc.gofast
+
+          import android.app.Activity
+          import android.os.Bundle
+          import android.graphics.Color
+          import android.view.Gravity
+          import android.widget.*
+
+          class MainActivity : Activity() {
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+
+                  val root = LinearLayout(this)
+                  root.orientation = LinearLayout.VERTICAL
+                  root.gravity = Gravity.CENTER
+                  root.setPadding(30, 30, 30, 30)
+                  root.setBackgroundColor(Color.rgb(7,16,25))
+
+                  val logo = TextView(this)
+                  logo.text = "GFC"
+                  logo.textSize = 48f
+                  logo.setTextColor(Color.rgb(255,196,0))
+                  logo.gravity = Gravity.CENTER
+
+                  val title = TextView(this)
+                  title.text = "GO FAST CHINHOYI"
+                  title.textSize = 20f
+                  title.setTextColor(Color.WHITE)
+                  title.gravity = Gravity.CENTER
+
+                  val subtitle = TextView(this)
+                  subtitle.text = "Fast • Safe • Reliable"
+                  subtitle.textSize = 16f
+                  subtitle.setTextColor(Color.LTGRAY)
+                  subtitle.gravity = Gravity.CENTER
+
+                  val destination = EditText(this)
+                  destination.hint = "Where are you going?"
+                  destination.setTextColor(Color.WHITE)
+                  destination.setHintTextColor(Color.GRAY)
+
+                  val button = Button(this)
+                  button.text = "REQUEST GFC RIDE"
+                  button.setOnClickListener {
+                      Toast.makeText(
+                          this,
+                          "Finding a nearby GFC driver...",
+                          Toast.LENGTH_LONG
+                      ).show()
+                  }
+
+                  root.addView(logo)
+                  root.addView(title)
+                  root.addView(subtitle)
+                  root.addView(destination)
+                  root.addView(button)
+
+                  setContentView(root)
+              }
+          }
+          EOF
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK
+        run: gradle assembleDebug
+
+      - name: Upload GFC APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: GFC-Go-Fast-Chinhoyi
+          path: app/build/outputs/apk/debug/app-debug.apk
